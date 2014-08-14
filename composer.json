@@ -1,0 +1,25 @@
+{
+    "name": "jelte/automaton-ssh",
+    "description": "SSH2 Library using php's ssh2 functions but adding some addition functionality",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Jelte Steijaert",
+            "email": "jelte@khepri.be"
+        }
+    ],
+    "autoload": {
+        "psr-4": {
+            "Automaton\\": "src/Automaton/"
+        }
+    },
+    "require": {
+        "php": ">=5.4.0",
+        "ext-ssh2": "*",
+        "symfony/process": "~2.5"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "~4.2",
+        "satooshi/php-coveralls": "dev-master"
+    }
+}
