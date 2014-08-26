@@ -5,6 +5,7 @@ namespace Automaton\Ssh2\Authentication;
 
 
 use Automaton\Ssh2\Authentication;
+use Automaton\Ssh2\Session;
 
 abstract class AbstractAuthentication implements Authentication
 {
@@ -15,12 +16,17 @@ abstract class AbstractAuthentication implements Authentication
         $this->username = $username;
     }
 
-    public function authenticate($session)
+    public function appendCommand(Session $session)
+    {
+        $session->addOption('User', $this->username);
+    }
+
+    public function authenticate(Session $session)
     {
         if ( !$this->doAuthenticate($session) ) {
             throw new \RuntimeException('Failed to authenticate');
         }
     }
 
-    abstract protected function doAuthenticate($session);
+    protected abstract function doAuthenticate(Session $session);
 } 

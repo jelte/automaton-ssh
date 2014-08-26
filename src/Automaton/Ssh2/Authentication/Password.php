@@ -4,6 +4,8 @@
 namespace Automaton\Ssh2\Authentication;
 
 
+use Automaton\Ssh2\Session;
+
 class Password extends AbstractAuthentication
 {
     protected $password;
@@ -14,8 +16,15 @@ class Password extends AbstractAuthentication
         $this->password = $password;
     }
 
-    protected function doAuthenticate($session)
+    public function appendCommand(Session $session)
     {
-        return ssh2_auth_password($session, $this->username, $this->password);
+        parent::appendCommand($session);
+        $session->addOption('PreferredAuthentications', 'password');
+        $session->addOption('PasswordAuthentication', 'yes');
+    }
+
+    protected function doAuthenticate(Session $session)
+    {
+        return $session->shell()->exec($this->password);
     }
 } 

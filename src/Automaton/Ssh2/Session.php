@@ -14,6 +14,7 @@ class Session
 {
     protected $host;
     protected $username;
+    /** @var Authentication */
     protected $authentication;
 
     /**
@@ -21,93 +22,79 @@ class Session
      */
     protected $shell;
 
-    private $connection;
-
     /**
      * @var Tunnel
      */
     protected $tunnel;
 
-    public function __construct($host, $port, $username, Tunnel $tunnel = null)
+    protected $arguments = array();
+
+    protected $password;
+
+    public function __construct($host, array $arguments = array(), array $options = array(), Tunnel $tunnel = null)
     {
         $this->host = $host;
-        $this->port = $port;
-        $this->username = $username;
-        $this->authentication = new None($username);
+        $this->arguments = $arguments;
+        $this->options = $options;
         $this->tunnel = $tunnel;
     }
 
-    public function connect()
+    public function password($username, $password)
     {
-        if (null === $this->connection) {
-            $this->connection = $this->createConnection();
+        $this->authentication = new Password($username, $password);
+    }
 
+    public function publicKeyFile($username, $privkeyfile = "~/.ssh/id_rsa", $passphrase = null)
+    {
+        $this->authentication = new PublicKeyFile($username, $privkeyfile, $passphrase);
+    }
+
+    public function addArgument($name, $value = null)
+    {
+        $this->arguments[$name] = $value;
+    }
+
+    public function addOption($name, $value)
+    {
+        $this->options[$name] = $value;
+    }
+
+    public function prepAuthentication()
+    {
+        if ( $this->authentication ) $this->authentication->appendCommand($this);
+    }
+
+    public function authenticate()
+    {
+        if ( $this->authentication ) $this->authentication->authenticate($this);
+    }
+
+    public function getCommand()
+    {
+        $arguments = [];
+        foreach ( $this->arguments as $name => $value ) {
+            $arguments[] = "-{$name} {$value}";
         }
-        return $this->connection;
-    }
-
-    public function password($password)
-    {
-        $this->authentication = new Password($this->username, $password);
-    }
-
-    public function pubkey($pubkeyfile, $privkeyfile, $passphrase = null)
-    {
-        $this->authentication = new PublicKeyFile($this->username, $pubkeyfile, $privkeyfile, $passphrase);
-    }
-
-    public function hostbased($pubkeyfile, $privkeyfile, $passphrase = null, $localUsername = null)
-    {
-        $this->authentication = new HostBasedFile($this->username, $pubkeyfile, $privkeyfile, $passphrase, $localUsername);
-    }
-
-    public function agent()
-    {
-        $this->authentication = new Agent($this->username);
-    }
-
-    protected function createConnection()
-    {
-        $params = $this->tunnel->open($this->host, $this->port, $this->username);
-        if (!($connection = call_user_func_array('ssh2_connect', $params))) {
-            die('Failed ' . implode(':', $params));
+        foreach ( $this->options as $name => $value ) {
+            $arguments[] = "-o{$name}={$value}";
         }
-        $this->authentication->authenticate($connection);
-        return $connection;
+        $arguments = implode(' ', $arguments);
+        return "ssh -t -t {$this->host} ${arguments}";
     }
 
-    public function exec($command)
-    {
-        if (!($stream = ssh2_exec($this->connect(), $command))) {
-            throw new \Exception('SSH command failed');
-        }
-        stream_set_blocking($stream, true);
-        // Hook into the error stream
-        $errorStream = ssh2_fetch_stream($stream, SSH2_STREAM_STDERR);
-
-        stream_set_blocking($stream, true);
-        stream_set_blocking($errorStream, true);
-
-        $data = "";
-        while ($buf = fread($stream, 4096)) {
-            $data .= $buf;
-        }
-        fclose($stream);
-        return $data;
-    }
-
+    /**
+     * @return Shell
+     */
     public function shell()
     {
-        if (null === $this->shell) {
+        if ( null === $this->shell ) {
             $this->shell = new Shell($this);
         }
         return $this->shell;
     }
 
-    public function upload($local, $remote, $mode = 0644)
+    public function exec($command)
     {
-        $connection = $this->createConnection();
-        $upload = ssh2_scp_send($connection, $local, $remote, $mode);
-        return $upload;
+        return $this->shell()->exec($command);
     }
 } 

@@ -1,4 +1,4 @@
 automaton-ssh
 =============
 
-Ssh2 Library
+SSH2 Library

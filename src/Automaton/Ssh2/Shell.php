@@ -4,43 +4,83 @@
 namespace Automaton\Ssh2;
 
 
-class Shell {
+final class Shell
+{
+    /** @var Session  */
+    private $session;
 
-    /**
-     * @var Session
-     */
-    protected $session;
+    private $process;
 
-    protected $stream;
+    private $descriptors = array(
+        0 => array('pipe', 'r'), // 0 is STDIN for process
+        1 => array('pipe', 'w'), // 1 is STDOUT for process
+        2 => array('pipe', 'w'), // 2 is STDERR for process
+    );
 
-    protected $output;
+    private $pipes = array();
 
     public function __construct(Session $session)
     {
         $this->session = $session;
     }
 
-    protected function shell()
+    protected function input()
     {
-        if ( null == $this->stream ) {
-            $this->stream = ssh2_shell($this->session->connect());
-            stream_set_blocking($this->stream, true);
-            sleep(1);
+        if (!isset($this->pipes[0])) {
+            $this->start();
         }
-        return $this->stream;
+        return $this->pipes[0];
+    }
+
+    protected function output()
+    {
+        if (!isset($this->pipes[1])) {
+            $this->start();
+        }
+        return $this->pipes[1];
     }
 
     public function exec($command)
     {
-        fwrite($this->shell(), $command."\n".PHP_EOL);
+        fwrite($this->input(), $command . "\n\n");
 
-        $line = '';
         $output = [];
-        // Then u can fetch the stream to see what happens on stdio
-        while(substr(trim($line), -1) != '$' &&  $line = fgets($this->shell())) {
+        $line = '';
+        while (substr(trim($line), -1) != "$" && $line = fgets($this->output())) {
             $output[] = trim($line);
         }
-        $lastLine = array_pop($output);
-        return implode("\n",array_splice($output,  array_search($lastLine.' '.$command, $output)+1));
+        array_shift($output);
+        array_pop($output);
+        return implode("\n", $output);
+    }
+
+    private function start()
+    {
+        $this->session->prepAuthentication();
+        $this->process = proc_open($this->session->getCommand(), $this->descriptors, $this->pipes);
+
+        stream_set_blocking($this->pipes[1], 1);
+        stream_set_blocking($this->pipes[2], 1);
+        stream_set_blocking($this->pipes[0], 1);
+        fwrite($this->pipes[0], "\n");
+
+        $line = '';
+        while (substr(trim($line), -1) != "$" && $line = fgets($this->pipes[1])) {
+
+        }
+        $this->session->authenticate();
+    }
+
+    public function __destruct()
+    {
+        if (isset($this->pipes[0])) {
+            fwrite($this->pipes[0], "logout\n\n");
+
+            fclose($this->pipes[0]);
+
+            fclose($this->pipes[1]);
+            fclose($this->pipes[2]);
+            proc_close($this->process);
+        }
     }
 }

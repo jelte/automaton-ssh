@@ -4,22 +4,31 @@
 namespace Automaton\Ssh2\Authentication;
 
 
+use Automaton\Ssh2\Session;
+
 class PublicKeyFile extends AbstractAuthentication
 {
     protected $pubkeyfile;
     protected $privkeyfile;
     protected $passphrase;
 
-    public function __construct($username, $pubkeyfile, $privkeyfile, $passphrase = null)
+    public function __construct($username, $privkeyfile, $passphrase = null)
     {
         parent::__construct($username);
-        $this->pubkeyfile = $pubkeyfile;
         $this->privkeyfile = $privkeyfile;
         $this->passphrase = $passphrase;
     }
 
-    protected function doAuthenticate($session)
+    public function appendCommand(Session $session)
     {
-        return ssh2_auth_pubkey_file($session, $this->username, $this->pubkeyfile, $this->privkeyfile, $this->passphrase);
+        parent::appendCommand($session);
+        $session->addOption('PreferredAuthentications','publickey');
+        $session->addOption('PubkeyAuthentication', 'yes');
+        $session->addOption('IdentityFile', $this->privkeyfile);
+    }
+
+    protected function doAuthenticate(Session $session)
+    {
+        return true;
     }
 } 
