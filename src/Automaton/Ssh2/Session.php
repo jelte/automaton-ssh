@@ -97,4 +97,23 @@ class Session
     {
         return $this->shell()->exec($command);
     }
+
+    public function scp()
+    {
+        $arguments = [];
+        foreach ( $this->arguments as $name => $value ) {
+            $arguments[] = "-{$name} {$value}";
+        }
+        foreach ( $this->options as $name => $value ) {
+            $arguments[] = "-o{$name}={$value}";
+        }
+        $arguments = implode(' ', $arguments);
+
+        return new Scp($this, $this->host, $arguments);
+    }
+
+    public function upload($local, $remote)
+    {
+        return $this->scp()->upload($local, $remote);
+    }
 } 

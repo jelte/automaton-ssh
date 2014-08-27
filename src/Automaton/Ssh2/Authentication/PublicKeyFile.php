@@ -12,7 +12,7 @@ class PublicKeyFile extends AbstractAuthentication
     protected $privkeyfile;
     protected $passphrase;
 
-    public function __construct($username, $privkeyfile, $passphrase = null)
+    public function __construct($username, $privkeyfile = '~/.ssh/id_rsa', $passphrase = null)
     {
         parent::__construct($username);
         $this->privkeyfile = $privkeyfile;
@@ -24,7 +24,7 @@ class PublicKeyFile extends AbstractAuthentication
         parent::appendCommand($session);
         $session->addOption('PreferredAuthentications','publickey');
         $session->addOption('PubkeyAuthentication', 'yes');
-        $session->addOption('IdentityFile', $this->privkeyfile);
+        $session->addOption('IdentityFile', $this->privkeyfile?$this->privkeyfile:'~/.ssh/id_rsa');
     }
 
     protected function doAuthenticate(Session $session)
